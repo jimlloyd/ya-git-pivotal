@@ -1,0 +1,29 @@
+{
+  "name": "ya-git-pivotal",
+  "version": "0.0.0",
+  "description": "Yet Another Git Extension for Pivotal Tracker",
+  "main": "git-pivotal.js",
+  "bin" : {
+    "git-pivotal" : "./git-pivotal.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "git",
+    "pivotal",
+    "tracker",
+    "integration"
+  ],
+  "author": "Jim Lloyd <jim.lloyd@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^0.5.1",
+    "debug": "^2.1.0",
+    "lodash": "^2.4.1",
+    "minimist": "^1.1.0",
+    "q": "^1.0.1",
+    "request": "^2.47.0",
+    "superstack": "0.0.4"
+  }
+}
