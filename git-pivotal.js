@@ -29,7 +29,10 @@ var pivotalConfig = {
   token: null
 };
 
+var branch_type = undefined;
+
 function execCommand(cmd) {
+	dlog('execCommand:', cmd);
   var deferred = Q.defer();
   exec(cmd, function (err, stdout, stderr) {
     if (err) {
@@ -98,18 +101,25 @@ function apiRequest(path, options, method) {
 }
 
 function getStories() {
+  dlog('getStories.');
   var story_types = ['chore', 'feature', 'bug'];
   var states = ['unscheduled', 'unstarted'];
+
+  if (argv.started) {
+    states.push('started');
+  }
 
   if (argv.chore || argv.feature || argv.bug) {
     story_types = _.filter(story_types, function (value) { return argv[value]; });
   }
-  if (argv.unscheduled || argv.unstarted) {
+  if (argv.unscheduled || argv.unstarted || argv.started) {
     states = _.filter(states, function (value) { return argv[value]; });
   }
 
   var fields = ['id', 'name'];
-  if (story_types.length > 1)
+  if (story_types.length === 1)
+    branch_type = story_types[0];
+  else
     fields.push('story_type');
   if (states.length > 1)
     fields.push('current_state');
@@ -124,6 +134,7 @@ function getStories() {
 }
 
 function setStoryStarted(story) {
+  dlog('setStoryStarted:', story);
   var path = 'stories/' + story.id;
   var options = {
     body: { current_state: 'started' }
@@ -131,14 +142,16 @@ function setStoryStarted(story) {
   return apiRequest(path, options, 'put')
     .then(function (result) {
       dlog('put request returned result:', result);
-      return story;
+      return result;
     })
     .catch(function (err) {
-        console.error('Error setting story state to started:', Err(err.toString()));
+      console.error('Error setting story state to started:', Err(err.toString()));
+      return story;
     });
 }
 
 function sortStories(stories) {
+  dlog('sortStories.');
   function compare(a, b) {
     function fieldCompare(field) {
       if (a[field] && b[field])
@@ -161,18 +174,19 @@ function sortStories(stories) {
 }
 
 function listStories(stories) {
+  dlog('listStories.');
   if (stories.length === 0) {
     return Q.reject(new Error('No unstarted stories found.'));
   }
   rl.write('\n');
   var G = chalk.gray;
   _.forEach(stories, function(story, index) {
-    var line = util.format('%s. %s', chalk.bold(index+1), story.name);
+    var line = util.format('%s. %s', index+1, story.name);
     if (story.story_type || story.current_state) {
       var extras = [];
       if (story.story_type) extras.push(story.story_type);
       if (story.current_state) extras.push(story.current_state);
-      line = line + G(util.format(' (%s)', extras.join()));
+      line = line + util.format(' (%s)', extras.join());
     }
     rl.write(line + '\n');
   });
@@ -180,18 +194,33 @@ function listStories(stories) {
 }
 
 function chooseStory(stories) {
+  dlog('chooseStory.');
   var deferred = Q.defer();
   rl.question('\nEnter # of story to work on: ', function (answer) {
     var index = parseInt(answer, 10);
-    if (index>=1 && index<=stories.length)
-      deferred.resolve(stories[index-1]);
-    else
+    if (index>=1 && index<=stories.length) {
+      var story = stories[index-1];
+      dlog('chooseStory index, story:', index, story);
+      deferred.resolve(story);
+    }
+    else {
+      dlog('chooseStory parseInt returned bad index:', index);
+      dlog('chooseStory answer was:', answer);
       deferred.reject(null);
+    }
   });
   return deferred.promise;
 }
 
+function makeBranchNameForStory(story) {
+  dlog('makeBranchNameForStory with story:', story);
+  var branchType = story.story_type || branch_type;
+  var branch = branchType + '/' + story.name.replace(/\s+/g, '-', 'g') + '_' + story.id;
+  return branch;
+}
+
 function createBranch(branch) {
+  dlog('createBranch:', branch);
   var cmd = 'git checkout -b ' + branch;
   rl.write('\n' + chalk.gray.bold(cmd) + '\n');
   return execCommand(cmd)
@@ -209,26 +238,27 @@ function help() {
     '\tgit-pivotal - Pivotal Tracker integration',
     '',
     B('SYNOPSIS'),
-    '\tgit pivotal start [--feature] [--chore] [--bug] [--unstarted] [--unscheduled]',
+    '\tgit pivotal start [--feature] [--chore] [--bug] [--unstarted] [--unscheduled] [--started]',
     '',
     '\t(That\'s all for now. Other commands and options may be added at a later date.)',
     '',
     B('DESCRIPTION'),
     '\tThs command facilitates using Git with Pivotal Tracker. Currently just one subcommands is provided:',
     '\t'+U('git pivotal start')+'. Use the start subcommand to choose a story to begin work on. This starts',
-    '\tthe story in Pivotal Tracker and creates a feature branch in your local git repository.',
+    '\tthe story in Pivotal Tracker and creates an appropriately named branch in your local git repository.',
     '',
     B('OPTIONS'),
     '\t--feature',
     '\t--chore',
     '\t--bug',
-    '\t    By default, search for feature, chore, and bug story types.',
-    '\t    If any of these three options are specified, search only for stories of the given type.',
+    '\t    If any of these three options are specified, search only for stories of the given types.',
+    '\t    By default, include all three types.',
     '',
     '\t--unstarted',
     '\t--unscheduled',
+    '\t--started',
+    '\t    If any of these two options are specified, search only for stories of the given states.',
     '\t    By default, search for unstarted and unscheduled stories.',
-    '\t    If any of these two options are specified, search only for stories in the given state.',
     '',
     B('CONFIGURATION'),
     '\tYou must set two git configuration variables:',
@@ -241,12 +271,6 @@ function help() {
 
   rl.write(usage.join('\n')+'\n');
   rl.close();
-}
-
-function makeBranchNameForStory(story) {
-    dlog('makeBranchNameForStory with story:', story);
-    var branch = 'feature/' + story.name.replace(/\s+/g, '-', 'g') + '_' + story.id;
-    return branch;
 }
 
 function startStory() {
@@ -263,6 +287,7 @@ function startStory() {
         console.log('Changed your mind??');
       else {
         console.error(Err(err));
+        console.error(err.stack);
       }
     })
     .done(function () {
