@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
+// superstack needs to be first, when used.
+// Unfortunately, it seems to be incompatible with node 0.11,
+// or rather using both superstack and Q.longStackSupport is incompatible with node 0.11.
+// var superstack = require('superstack');
+// superstack.empty_frame = '----';
+
 var _ = require('lodash');
 var chalk = require('chalk');
 var dlog = require('debug')('pivotal');
@@ -9,13 +15,11 @@ var parseArgs = require('minimist')
 var Q = require('q');
 var readline = require('readline');
 var request = require('request');
-var superstack = require('superstack');
 var util = require('util');
 
 var Err = chalk.red.bold;
 
 Q.longStackSupport = true;
-superstack.empty_frame = '----';
 
 var argv = parseArgs(process.argv.slice(2));
 
