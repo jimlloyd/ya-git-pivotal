@@ -1,32 +1,25 @@
 #!/usr/bin/env node
 'use strict';
 
-// superstack needs to be first, when used.
-// Unfortunately, it seems to be incompatible with node 0.11,
-// or rather using both superstack and Q.longStackSupport is incompatible with node 0.11.
-// var superstack = require('superstack');
-// superstack.empty_frame = '----';
-
 var _ = require('lodash');
 var chalk = require('chalk');
 var dlog = require('debug')('pivotal');
-var exec = require('child_process').exec;
+var child_process = require('child_process');
 var parseArgs = require('minimist')
-var Q = require('q');
 var readline = require('readline');
-var request = require('request');
 var util = require('util');
+
+// require('request-debug')(request);
+
+var Promise = require('bluebird');
+var TimeoutError = Promise.TimeoutError;
+var request = Promise.promisify(require("request"));
+
+var exec = child_process.exec;
 
 var Err = chalk.red.bold;
 
-Q.longStackSupport = true;
-
 var argv = parseArgs(process.argv.slice(2));
-
-var rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 var pivotalConfig = {
   project: null,
@@ -36,23 +29,25 @@ var pivotalConfig = {
 var branch_type = undefined;
 
 function execCommand(cmd) {
-	dlog('execCommand:', cmd);
-  var deferred = Q.defer();
-  exec(cmd, function (err, stdout, stderr) {
-    if (err) {
-      var message = util.format('Command <%s> failed with status code:%d.\nstderr:\n%s\n', cmd, err.code, stderr);
-      deferred.reject(new Error(message));
-    }
-    else {
-      deferred.resolve([stdout, stderr]);
-    }
+  return new Promise(function (resolve, reject) {
+    dlog('execCommand started:', cmd);
+    exec(cmd, function (err, stdout, stderr) {
+      if (err) {
+        var message = util.format('Command <%s> failed with status code:%d.\nstderr:\n%s\n', cmd, err.code, stderr);
+        reject(new Error(message));
+      }
+      else {
+        dlog('execCommand finished:', cmd);
+        resolve([stdout, stderr]);
+      }
+    });
   });
-  return deferred.promise;
 }
 
 function getPivotalConfig() {
   var cmd = 'git config --get-regexp "pivotal\.(token|project)"';
   return execCommand(cmd)
+    .timeout(3000)
     .then(function (outAndErr) {
       var lines = outAndErr[0].split('\n');
       lines = lines.map(function (line) { return line.trim(); });
@@ -70,38 +65,31 @@ function getPivotalConfig() {
       });
 
       return pivotalConfig;
-    })
-    .catch(function (err) {
-      throw(new Error('git config variables pivotal.token and pivotal.project must be defined.'));
     });
+//     .catch(function (err) {
+//       console.log(err);
+//       throw(new Error('git config variables pivotal.token and pivotal.project must be defined.'));
+//     });
 }
 
 function apiRequest(path, options, method) {
   options = options || {};
   method = method || 'get';
   var baseUrl = 'https://www.pivotaltracker.com/services/v5/projects/' + pivotalConfig.project + '/';
-	var opts = _.extend({
-		method: method,
-		url: baseUrl + path,
-		json: true,
-		headers: {
-			'X-TrackerToken': pivotalConfig.token
-		}
-	}, options);
-
-	dlog('apiRequest:', opts);
-
-  var deferred = Q.defer();
-  request(opts, function callback(err, response, body) {
-    if (err)
-      deferred.reject(err);
-    else if (response.statusCode !== 200)
-      deferred.reject(new Error(util.format('HTTP status:%d', response.statusCode)));
-    else {
-      deferred.resolve(body);
+  var opts = _.extend({
+    method: method,
+    url: baseUrl + path,
+    json: true,
+    headers: {
+      'X-TrackerToken': pivotalConfig.token
     }
+  }, options);
+
+  dlog('apiRequest started:', opts);
+
+  return request(opts).then(function (response) {
+    return response[1];
   });
-  return deferred.promise;
 }
 
 function getStories() {
@@ -120,7 +108,7 @@ function getStories() {
     states = _.filter(states, function (value) { return argv[value]; });
   }
 
-  var fields = ['id', 'name'];
+  var fields = ['id', 'name', 'estimate'];
   if (story_types.length === 1)
     branch_type = story_types[0];
   else
@@ -130,6 +118,11 @@ function getStories() {
 
   var path = util.format('stories?filter=state:%s story_type:%s', states.join(), story_types.join());
   return apiRequest(path)
+//     .timeout(3000)
+//     .catch(TimeoutError, function(err) {
+//       console.error('API request to get stories timed out');
+//       throw err;
+//     })
     .then(function (result) {
       dlog(result);
       var stories = _.map(result, function (e) { return _.pick(e, fields); });
@@ -144,76 +137,99 @@ function setStoryStarted(story) {
     body: { current_state: 'started' }
   };
   return apiRequest(path, options, 'put')
+//     .timeout(3000)
+//     .catch(TimeoutError, function(err) {
+//       console.error('API request to start story timed out');
+//       throw err;
+//     })
     .then(function (result) {
       dlog('put request returned result:', result);
       return result;
-    })
-    .catch(function (err) {
-      console.error('Error setting story state to started:', Err(err.toString()));
-      return story;
     });
 }
 
 function sortStories(stories) {
-  dlog('sortStories.');
-  function compare(a, b) {
-    function fieldCompare(field) {
-      if (a[field] && b[field])
-        return a[field].localeCompare(b[field]);
-      else
-        return 0;
+  return new Promise(function (resolve, reject) {
+    dlog('sortStories.');
+    function compare(a, b) {
+      function fieldCompare(field) {
+        if (a[field] && b[field])
+          return a[field].localeCompare(b[field]);
+        else
+          return 0;
+      }
+      var cmp;
+      cmp = fieldCompare('current_state');
+      if (cmp !== 0)
+        return -cmp;
+      cmp = fieldCompare('story_type');
+      if (cmp !== 0)
+        return -cmp;
+      cmp = fieldCompare('name');
+      return cmp;
     }
-    var cmp;
-    cmp = fieldCompare('current_state');
-    if (cmp !== 0)
-      return -cmp;
-    cmp = fieldCompare('story_type');
-    if (cmp !== 0)
-      return -cmp;
-    cmp = fieldCompare('name');
-    return cmp;
-  }
-
-  return stories.sort(compare);
+    resolve(stories.sort(compare));
+  });
 }
 
 function listStories(stories) {
-  dlog('listStories.');
-  if (stories.length === 0) {
-    return Q.reject(new Error('No unstarted stories found.'));
-  }
-  rl.write('\n');
-  var G = chalk.gray;
-  _.forEach(stories, function(story, index) {
-    var line = util.format('%s. %s', index+1, story.name);
-    if (story.story_type || story.current_state) {
-      var extras = [];
-      if (story.story_type) extras.push(story.story_type);
-      if (story.current_state) extras.push(story.current_state);
-      line = line + util.format(' (%s)', extras.join());
+  return new Promise(function (resolve, reject) {
+    dlog('listStories.');
+    if (stories.length === 0) {
+      return reject(new Error('No unstarted stories found.'));
     }
-    rl.write(line + '\n');
+    process.stdout.write('\n');
+    var G = chalk.gray;
+    _.forEach(stories, function(story, index) {
+      var line = util.format('%s. %s', index+1, story.name);
+      if (story.story_type || story.current_state) {
+        var extras = [];
+        if (story.story_type) extras.push(story.story_type);
+        if (story.current_state) extras.push(story.current_state);
+        if (story.story_type === 'feature') {
+          if (_.isUndefined(story.estimate))
+            extras.push(chalk.red('UNESTIMATED'));
+          else
+            extras.push(chalk.green(story.estimate + 'pts'));
+        }
+        line = line + util.format(' (%s)', extras.join());
+      }
+      process.stdout.write(line + '\n');
+    });
+    resolve(stories);
   });
-  return new Q(stories);
 }
 
 function chooseStory(stories) {
-  dlog('chooseStory.');
-  var deferred = Q.defer();
-  rl.question('\nEnter # of story to work on: ', function (answer) {
-    var index = parseInt(answer, 10);
-    if (index>=1 && index<=stories.length) {
-      var story = stories[index-1];
-      dlog('chooseStory index, story:', index, story);
-      deferred.resolve(story);
-    }
-    else {
-      dlog('chooseStory parseInt returned bad index:', index);
-      dlog('chooseStory answer was:', answer);
-      deferred.reject(null);
-    }
+  return new Promise(function (resolve, reject) {
+    dlog('chooseStory.');
+    var rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question('\nEnter # of story to work on: ', function (answer) {
+      rl.close();
+      var index = parseInt(answer, 10);
+      if (index>=1 && index<=stories.length) {
+        var story = stories[index-1];
+        dlog('chooseStory index, story:', index, story);
+        if (story.story_type === 'feature' && _.isUndefined(story.estimate)) {
+          console.error(Err('Features must be estimated before they can be started.'));
+          reject(null);
+        }
+        else {
+          resolve(story);
+        }
+      }
+      else {
+        dlog('chooseStory parseInt returned bad index:', index);
+        dlog('chooseStory answer was:', answer);
+        console.log('Changed your mind??');
+        reject(null);
+      }
+    });
   });
-  return deferred.promise;
 }
 
 function makeBranchNameForStory(story) {
@@ -226,10 +242,11 @@ function makeBranchNameForStory(story) {
 function createBranch(branch) {
   dlog('createBranch:', branch);
   var cmd = 'git checkout -b ' + branch;
-  rl.write('\n' + chalk.gray.bold(cmd) + '\n');
+  process.stdout.write('\n' + chalk.gray.bold(cmd) + '\n');
   return execCommand(cmd)
+    .timeout(3000)
     .then(function (outAndErr) {
-      _.forEach(outAndErr, rl.write.bind(rl));
+      _.forEach(outAndErr, process.stdout.write.bind(process.stdout));
       return null;
     });
 }
@@ -273,12 +290,11 @@ function help() {
     ''
   ];
 
-  rl.write(usage.join('\n')+'\n');
-  rl.close();
+  process.stdout.write(usage.join('\n')+'\n');
 }
 
 function startStory() {
-  getPivotalConfig()
+  return getPivotalConfig()
     .then(getStories)
     .then(sortStories)
     .then(listStories)
@@ -287,15 +303,10 @@ function startStory() {
     .then(makeBranchNameForStory)
     .then(createBranch)
     .catch(function (err) {
-      if (err === null)
-        console.log('Changed your mind??');
-      else {
+      if (err) {
         console.error(Err(err));
         console.error(err.stack);
       }
-    })
-    .done(function () {
-      rl.close();
     });
 }
 
@@ -303,7 +314,7 @@ if (argv.h || argv.help) {
   help();
 }
 else if (argv._[0] === 'start') {
-  startStory();
+  startStory().done();
 }
 else {
   help();
