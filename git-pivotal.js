@@ -22,6 +22,8 @@ var pivotalConfig = {
   token: null
 };
 
+var pivotalIdentity;
+
 var branch_type = undefined;
 
 function execCommand(cmd) {
@@ -88,6 +90,19 @@ function apiRequest(path, options, method) {
   });
 }
 
+function getIdentity() {
+  dlog('getMe');
+  var options = {
+    url: 'https://www.pivotaltracker.com/services/v5/me'
+  };
+  return apiRequest('/me', options, 'get')
+    .then(function (result) {
+      dlog('put request returned result:', result);
+      pivotalIdentity = result;
+      return result;
+    });
+}
+
 function getStories() {
   dlog('getStories.');
   var story_types = ['chore', 'feature', 'bug'];
@@ -125,7 +140,7 @@ function setStoryStarted(story) {
   dlog('setStoryStarted:', story);
   var path = 'stories/' + story.id;
   var options = {
-    body: { current_state: 'started' }
+    body: { current_state: 'started', owner_ids: [ pivotalIdentity.id ] }
   };
   return apiRequest(path, options, 'put')
     .then(function (result) {
@@ -281,6 +296,7 @@ function help() {
 
 function startStory() {
   return getPivotalConfig()
+    .then(getIdentity)
     .then(getStories)
     .then(sortStories)
     .then(listStories)
