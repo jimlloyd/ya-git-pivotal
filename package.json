@@ -3,8 +3,8 @@
   "version": "0.0.2",
   "description": "Yet Another Git Extension for Pivotal Tracker",
   "main": "git-pivotal.js",
-  "bin" : {
-    "git-pivotal" : "./git-pivotal.js"
+  "bin": {
+    "git-pivotal": "./git-pivotal.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -20,10 +20,14 @@
   "dependencies": {
     "chalk": "^0.5.1",
     "debug": "^2.1.0",
+    "kew": "^0.5.0-alpha.1",
     "lodash": "^2.4.1",
     "minimist": "^1.1.0",
-    "q": "^1.0.1",
-    "request": "^2.47.0",
-    "superstack": "0.0.4"
+    "request": "^2.49.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:jimlloyd/ya-git-pivotal.git"
   }
 }
