@@ -9,13 +9,9 @@ var parseArgs = require('minimist')
 var readline = require('readline');
 var util = require('util');
 
-// require('request-debug')(request);
-
 var Promise = require('bluebird');
 var TimeoutError = Promise.TimeoutError;
 var request = Promise.promisify(require("request"));
-
-var exec = child_process.exec;
 
 var Err = chalk.red.bold;
 
@@ -31,7 +27,7 @@ var branch_type = undefined;
 function execCommand(cmd) {
   return new Promise(function (resolve, reject) {
     dlog('execCommand started:', cmd);
-    exec(cmd, function (err, stdout, stderr) {
+    child_process.exec(cmd, function (err, stdout, stderr) {
       if (err) {
         var message = util.format('Command <%s> failed with status code:%d.\nstderr:\n%s\n', cmd, err.code, stderr);
         reject(new Error(message));
@@ -118,11 +114,6 @@ function getStories() {
 
   var path = util.format('stories?filter=state:%s story_type:%s', states.join(), story_types.join());
   return apiRequest(path)
-//     .timeout(3000)
-//     .catch(TimeoutError, function(err) {
-//       console.error('API request to get stories timed out');
-//       throw err;
-//     })
     .then(function (result) {
       dlog(result);
       var stories = _.map(result, function (e) { return _.pick(e, fields); });
@@ -137,11 +128,6 @@ function setStoryStarted(story) {
     body: { current_state: 'started' }
   };
   return apiRequest(path, options, 'put')
-//     .timeout(3000)
-//     .catch(TimeoutError, function(err) {
-//       console.error('API request to start story timed out');
-//       throw err;
-//     })
     .then(function (result) {
       dlog('put request returned result:', result);
       return result;
@@ -186,7 +172,7 @@ function listStories(stories) {
         var extras = [];
         if (story.story_type) extras.push(story.story_type);
         if (story.current_state) extras.push(story.current_state);
-        if (story.story_type === 'feature') {
+        if (story.story_type === 'feature' || branch_type === 'feature') {
           if (_.isUndefined(story.estimate))
             extras.push(chalk.red('UNESTIMATED'));
           else
@@ -214,7 +200,7 @@ function chooseStory(stories) {
       if (index>=1 && index<=stories.length) {
         var story = stories[index-1];
         dlog('chooseStory index, story:', index, story);
-        if (story.story_type === 'feature' && _.isUndefined(story.estimate)) {
+        if ((story.story_type === 'feature' || branch_type === 'feature') && _.isUndefined(story.estimate)) {
           console.error(Err('Features must be estimated before they can be started.'));
           reject(null);
         }
