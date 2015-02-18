@@ -236,7 +236,7 @@ function chooseStory(stories) {
 function makeBranchNameForStory(story) {
   dlog('makeBranchNameForStory with story:', story);
   var branchType = story.story_type || branch_type;
-  var branch = branchType + '/' + story.name.replace(/\s+/g, '-', 'g') + '_' + story.id;
+  var branch = branchType + '/' + story.name.replace(/\W+/g, '-', 'g') + '_' + story.id;
   return branch;
 }
 
