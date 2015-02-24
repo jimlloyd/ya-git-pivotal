@@ -19,7 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "bluebird": "^2.3.11",
-    "chalk": "^0.5.1",
+    "chalk": "^1.0.0",
     "debug": "^2.1.0",
     "lodash": "^2.4.1",
     "minimist": "^1.1.0",
