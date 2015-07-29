@@ -19,7 +19,8 @@ var argv = parseArgs(process.argv.slice(2));
 
 var pivotalConfig = {
   project: null,
-  token: null
+  token: null,
+  label: null
 };
 
 var pivotalIdentity;
@@ -43,7 +44,7 @@ function execCommand(cmd) {
 }
 
 function getPivotalConfig() {
-  var cmd = 'git config --get-regexp "pivotal\.(token|project)"';
+  var cmd = 'git config --get-regexp "pivotal\.(token|project|label)"';
   return execCommand(cmd)
     .timeout(3000)
     .then(function (outAndErr) {
@@ -60,6 +61,8 @@ function getPivotalConfig() {
           pivotalConfig.token = words[1];
         else if (words[0].match(/project$/))
           pivotalConfig.project = words[1];
+        else if (words[0].match(/label$/))
+          pivotalConfig.label = words[1];
       });
 
       return pivotalConfig;
@@ -128,8 +131,9 @@ function getStories() {
     fields.push('current_state');
 
   var labelExpr = '';
-  if (argv.label) {
-    labelExpr = util.format('label:"%s"', argv.label);
+  if (_.isString(argv.label) || _.isString(pivotalConfig.label)) {
+    var label = argv.label || pivotalConfig.label;
+    labelExpr = util.format('label:"%s"', label);
   }
 
   var path = util.format('stories?filter=state:%s story_type:%s %s', states.join(), story_types.join(), labelExpr);
@@ -289,6 +293,7 @@ function help() {
     '',
     '\t--label=<label>',
     '\t    Search only for stories with the given label.',
+    '\t    Note that a default label can be specified, see below.',
     '',
     B('CONFIGURATION'),
     '\tYou must set two git configuration variables:',
@@ -296,6 +301,9 @@ function help() {
     '\t    pivotal.project  The project number of the Pivotal Tracker project. This is the number',
     '\t                     that appears in the URL when viewing your project, e.g. the NNNNNNN in',
     '\t                     https://www.pivotaltracker.com/n/projects/NNNNNNN.',
+    '\tYou may optionally set:',
+    '\t    pivotal.label    A default label that will be used as if it were provided with --label',
+    '\t                     when --label=<label> is not specified on the command line.',
     ''
   ];
 
