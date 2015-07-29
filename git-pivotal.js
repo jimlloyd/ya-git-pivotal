@@ -127,7 +127,12 @@ function getStories() {
   if (states.length > 1)
     fields.push('current_state');
 
-  var path = util.format('stories?filter=state:%s story_type:%s', states.join(), story_types.join());
+  var labelExpr = '';
+  if (argv.label) {
+    labelExpr = util.format('label:"%s"', argv.label);
+  }
+
+  var path = util.format('stories?filter=state:%s story_type:%s %s', states.join(), story_types.join(), labelExpr);
   return apiRequest(path)
     .then(function (result) {
       dlog(result);
@@ -260,12 +265,12 @@ function help() {
     '\tgit-pivotal - Pivotal Tracker integration',
     '',
     B('SYNOPSIS'),
-    '\tgit pivotal start [--feature] [--chore] [--bug] [--unstarted] [--unscheduled] [--started]',
+    '\tgit pivotal start <options>',
     '',
     '\t(That\'s all for now. Other commands and options may be added at a later date.)',
     '',
     B('DESCRIPTION'),
-    '\tThs command facilitates using Git with Pivotal Tracker. Currently just one subcommands is provided:',
+    '\tThis command facilitates using Git with Pivotal Tracker. Currently just one subcommand is provided:',
     '\t'+U('git pivotal start')+'. Use the start subcommand to choose a story to begin work on. This starts',
     '\tthe story in Pivotal Tracker and creates an appropriately named branch in your local git repository.',
     '',
@@ -279,8 +284,11 @@ function help() {
     '\t--unstarted',
     '\t--unscheduled',
     '\t--started',
-    '\t    If any of these two options are specified, search only for stories of the given states.',
-    '\t    By default, search for unstarted and unscheduled stories.',
+    '\t    If any of these three options are specified, search only for stories of the given states.',
+    '\t    By default, search for unstarted (backlog) and unscheduled (icebox) stories.',
+    '',
+    '\t--label=<label>',
+    '\t    Search only for stories with the given label.',
     '',
     B('CONFIGURATION'),
     '\tYou must set two git configuration variables:',
