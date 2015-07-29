@@ -23,12 +23,12 @@ NAME
 	git-pivotal - Pivotal Tracker integration
 
 SYNOPSIS
-	git pivotal start [--feature] [--chore] [--bug] [--unstarted] [--unscheduled] [--started]
+	git pivotal start <options>
 
 	(That's all for now. Other commands and options may be added at a later date.)
 
 DESCRIPTION
-	Ths command facilitates using Git with Pivotal Tracker. Currently just one subcommands is provided:
+	This command facilitates using Git with Pivotal Tracker. Currently just one subcommand is provided:
 	git pivotal start. Use the start subcommand to choose a story to begin work on. This starts
 	the story in Pivotal Tracker and creates an appropriately named branch in your local git repository.
 
@@ -42,8 +42,12 @@ OPTIONS
 	--unstarted
 	--unscheduled
 	--started
-	    If any of these two options are specified, search only for stories of the given states.
-	    By default, search for unstarted and unscheduled stories.
+	    If any of these three options are specified, search only for stories of the given states.
+	    By default, search for unstarted (backlog) and unscheduled (icebox) stories.
+
+	--label=<label>
+	    Search only for stories with the given label.
+	    Note that a default label can be specified, see below.
 
 CONFIGURATION
 	You must set two git configuration variables:
@@ -51,6 +55,9 @@ CONFIGURATION
 	    pivotal.project  The project number of the Pivotal Tracker project. This is the number
 	                     that appears in the URL when viewing your project, e.g. the NNNNNNN in
 	                     https://www.pivotaltracker.com/n/projects/NNNNNNN.
+	You may optionally set:
+	    pivotal.label    A default label that will be used as if it were provided with --label
+	                     when --label=<label> is not specified on the command line.
 ```
 
 ## Other similar packages

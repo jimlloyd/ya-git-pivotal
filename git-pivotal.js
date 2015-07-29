@@ -19,7 +19,8 @@ var argv = parseArgs(process.argv.slice(2));
 
 var pivotalConfig = {
   project: null,
-  token: null
+  token: null,
+  label: null
 };
 
 var pivotalIdentity;
@@ -43,7 +44,7 @@ function execCommand(cmd) {
 }
 
 function getPivotalConfig() {
-  var cmd = 'git config --get-regexp "pivotal\.(token|project)"';
+  var cmd = 'git config --get-regexp "pivotal\.(token|project|label)"';
   return execCommand(cmd)
     .timeout(3000)
     .then(function (outAndErr) {
@@ -60,6 +61,8 @@ function getPivotalConfig() {
           pivotalConfig.token = words[1];
         else if (words[0].match(/project$/))
           pivotalConfig.project = words[1];
+        else if (words[0].match(/label$/))
+          pivotalConfig.label = words[1];
       });
 
       return pivotalConfig;
@@ -127,7 +130,13 @@ function getStories() {
   if (states.length > 1)
     fields.push('current_state');
 
-  var path = util.format('stories?filter=state:%s story_type:%s', states.join(), story_types.join());
+  var labelExpr = '';
+  if (_.isString(argv.label) || _.isString(pivotalConfig.label)) {
+    var label = argv.label || pivotalConfig.label;
+    labelExpr = util.format('label:"%s"', label);
+  }
+
+  var path = util.format('stories?filter=state:%s story_type:%s %s', states.join(), story_types.join(), labelExpr);
   return apiRequest(path)
     .then(function (result) {
       dlog(result);
@@ -260,12 +269,12 @@ function help() {
     '\tgit-pivotal - Pivotal Tracker integration',
     '',
     B('SYNOPSIS'),
-    '\tgit pivotal start [--feature] [--chore] [--bug] [--unstarted] [--unscheduled] [--started]',
+    '\tgit pivotal start <options>',
     '',
     '\t(That\'s all for now. Other commands and options may be added at a later date.)',
     '',
     B('DESCRIPTION'),
-    '\tThs command facilitates using Git with Pivotal Tracker. Currently just one subcommands is provided:',
+    '\tThis command facilitates using Git with Pivotal Tracker. Currently just one subcommand is provided:',
     '\t'+U('git pivotal start')+'. Use the start subcommand to choose a story to begin work on. This starts',
     '\tthe story in Pivotal Tracker and creates an appropriately named branch in your local git repository.',
     '',
@@ -279,8 +288,12 @@ function help() {
     '\t--unstarted',
     '\t--unscheduled',
     '\t--started',
-    '\t    If any of these two options are specified, search only for stories of the given states.',
-    '\t    By default, search for unstarted and unscheduled stories.',
+    '\t    If any of these three options are specified, search only for stories of the given states.',
+    '\t    By default, search for unstarted (backlog) and unscheduled (icebox) stories.',
+    '',
+    '\t--label=<label>',
+    '\t    Search only for stories with the given label.',
+    '\t    Note that a default label can be specified, see below.',
     '',
     B('CONFIGURATION'),
     '\tYou must set two git configuration variables:',
@@ -288,6 +301,9 @@ function help() {
     '\t    pivotal.project  The project number of the Pivotal Tracker project. This is the number',
     '\t                     that appears in the URL when viewing your project, e.g. the NNNNNNN in',
     '\t                     https://www.pivotaltracker.com/n/projects/NNNNNNN.',
+    '\tYou may optionally set:',
+    '\t    pivotal.label    A default label that will be used as if it were provided with --label',
+    '\t                     when --label=<label> is not specified on the command line.',
     ''
   ];
 
