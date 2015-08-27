@@ -121,7 +121,7 @@ function getStories() {
     states = _.filter(states, function (value) { return argv[value]; });
   }
 
-  var fields = ['id', 'name', 'estimate'];
+  var fields = ['id', 'name', 'estimate', 'labels'];
   if (story_types.length === 1)
     branch_type = story_types[0];
   else
@@ -151,7 +151,14 @@ function getStories() {
   return apiRequest(path)
     .then(function (result) {
       dlog(result);
-      var stories = _.map(result, function (e) { return _.pick(e, fields); });
+      var stories = _.map(result, function (e) {
+        var story = _.pick(e, fields);
+        story.labels = _.map(story.labels, function (labelObj) {
+          return labelObj.name;
+        });
+        return story;
+      });
+
       return stories;
     });
 }
@@ -214,6 +221,10 @@ function listStories(stories) {
             extras.push(chalk.green(story.estimate + 'pts'));
         }
         line = line + util.format(' (%s)', extras.join());
+        if (story.labels.length > 0) {
+          var labels = _.map(story.labels, function(l) { return chalk.blue(l); }).join(',');
+          line = line + util.format(' [%s]', labels);
+        }
       }
       process.stdout.write(line + '\n');
     });
