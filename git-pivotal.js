@@ -57,12 +57,9 @@ function getPivotalConfig() {
         var parts = line.match(/(\w+)\s+(.+)/);
         if (!parts || parts.length !== 3)
           return;
-        if (parts[1].match(/token$/))
-          pivotalConfig.token = parts[2];
-        else if (parts[1].match(/project$/))
-          pivotalConfig.project = parts[2];
-        else if (parts[1].match(/label$/))
-          pivotalConfig.label = parts[2];
+        var name = parts[1];
+        var value = parts[2];
+        pivotalConfig[name] = value;
       });
 
       return pivotalConfig;
