@@ -54,23 +54,19 @@ function getPivotalConfig() {
       _.forEach(lines, function (line) {
         if (line.length===0)
           return;
-        var words = line.split(/\s+/);
-        if (words.length!==2)
+        var parts = line.match(/(\w+)\s+(.+)/);
+        if (!parts || parts.length !== 3)
           return;
-        if (words[0].match(/token$/))
-          pivotalConfig.token = words[1];
-        else if (words[0].match(/project$/))
-          pivotalConfig.project = words[1];
-        else if (words[0].match(/label$/))
-          pivotalConfig.label = words[1];
+        var name = parts[1];
+        var value = parts[2];
+        pivotalConfig[name] = value;
       });
 
       return pivotalConfig;
+    })
+    .catch(function (err) {
+      throw(new Error('git config variables pivotal.token and pivotal.project must be defined.'));
     });
-//     .catch(function (err) {
-//       console.log(err);
-//       throw(new Error('git config variables pivotal.token and pivotal.project must be defined.'));
-//     });
 }
 
 function apiRequest(path, options, method) {
@@ -122,7 +118,7 @@ function getStories() {
     states = _.filter(states, function (value) { return argv[value]; });
   }
 
-  var fields = ['id', 'name', 'estimate'];
+  var fields = ['id', 'name', 'estimate', 'labels'];
   if (story_types.length === 1)
     branch_type = story_types[0];
   else
@@ -133,14 +129,33 @@ function getStories() {
   var labelExpr = '';
   if (_.isString(argv.label) || _.isString(pivotalConfig.label)) {
     var label = argv.label || pivotalConfig.label;
-    labelExpr = util.format('label:"%s"', label);
+    dlog('Got label expression:<%s>', label);
+
+    var terms = label.split(',');
+    terms = _.map(terms, function(term) {
+      if (term[0] === '!') {
+        return util.format('-label:"%s"', term.slice(1));
+      } else {
+        return util.format('label:"%s"', term);
+      }
+    });
+
+    labelExpr = terms.join(' ');
+    dlog('Label search expression:', labelExpr);
   }
 
   var path = util.format('stories?filter=state:%s story_type:%s %s', states.join(), story_types.join(), labelExpr);
   return apiRequest(path)
     .then(function (result) {
       dlog(result);
-      var stories = _.map(result, function (e) { return _.pick(e, fields); });
+      var stories = _.map(result, function (e) {
+        var story = _.pick(e, fields);
+        story.labels = _.map(story.labels, function (labelObj) {
+          return labelObj.name;
+        });
+        return story;
+      });
+
       return stories;
     });
 }
@@ -203,6 +218,10 @@ function listStories(stories) {
             extras.push(chalk.green(story.estimate + 'pts'));
         }
         line = line + util.format(' (%s)', extras.join());
+        if (story.labels.length > 0) {
+          var labels = _.map(story.labels, function(l) { return chalk.blue(l); }).join(',');
+          line = line + util.format(' [%s]', labels);
+        }
       }
       process.stdout.write(line + '\n');
     });
@@ -291,9 +310,11 @@ function help() {
     '\t    If any of these three options are specified, search only for stories of the given states.',
     '\t    By default, search for unstarted (backlog) and unscheduled (icebox) stories.',
     '',
-    '\t--label=<label>',
-    '\t    Search only for stories with the given label.',
-    '\t    Note that a default label can be specified, see below.',
+    '\t--label=<label expression>',
+    '\t    Return only stories that match the given `label expression`.',
+    '\t    An expression is one or more label terms, separated by commas.',
+    '\t    A label term is either a simple label, or a label prefixed with a ! character, to exclude labels.',
+    '\t    Note that a default label expression can be specified, see below.',
     '',
     B('CONFIGURATION'),
     '\tYou must set two git configuration variables:',
