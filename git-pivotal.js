@@ -289,13 +289,18 @@ function help() {
     '',
     B('SYNOPSIS'),
     '\tgit pivotal start <options>',
-    '',
-    '\t(That\'s all for now. Other commands and options may be added at a later date.)',
+    '\tgit pivotal bump',
     '',
     B('DESCRIPTION'),
-    '\tThis command facilitates using Git with Pivotal Tracker. Currently just one subcommand is provided:',
-    '\t'+U('git pivotal start')+'. Use the start subcommand to choose a story to begin work on. This starts',
-    '\tthe story in Pivotal Tracker and creates an appropriately named branch in your local git repository.',
+    '\tThis command facilitates using Git with Pivotal Tracker.',
+    '',
+    '\tUse the start subcommand to choose a story to begin work on. It starts the story in Pivotal Tracker',
+    '\tand creates an appropriately named branch in your local git repository.',
+    '',
+    '\tUse the bump subcommand to create a new branch for the current story, in preparation for rebasing.',
+    '\tThe first time this is done, it appends ".v1" to the story name. On second and subsequent bumps, then',
+    '\tthe version numbers is bumped: .v2, .v3, etc.',
+    '\tThe bump subcommand does not change pivotal state.',
     '',
     B('OPTIONS'),
     '\t--feature',
@@ -349,11 +354,56 @@ function startStory() {
     });
 }
 
+function getNewBranchName() {
+  var cmd = 'git symbolic-ref --short HEAD';
+  return execCommand(cmd)
+    .timeout(3000)
+    .then(function (outAndErr) {
+      var lines = outAndErr[0].split('\n');
+      var branch = lines[0];
+      dlog('getNewBranchName: current branch is:', branch);
+
+      var m = /^(.+)_(\d+)(\.v(\d+))?$/.exec(branch);
+      if (!m) {
+        return Promise.reject('Could not parse branch name:' + branch);
+      }
+
+      if (!m[3]) {
+        m[4] = 1;
+      } else {
+        m[4] = parseInt(m[4]) + 1;
+      }
+
+      branch = m[1] + '_' + m[2] + '.v' + m[4];
+      dlog('getNewBranchName: bumped branch is:', branch);
+
+      return branch;
+    })
+    .catch(function (err) {
+      throw(new Error('Could not get branch name.'));
+    });
+}
+
+
+function bumpBranch() {
+  return getNewBranchName()
+    .then(createBranch)
+    .catch(function (err) {
+      if (err) {
+        console.error(Err(err));
+        console.error(err.stack);
+      }
+    });
+}
+
 if (argv.h || argv.help) {
   help();
 }
 else if (argv._[0] === 'start') {
   startStory().done();
+}
+else if (argv._[0] === 'bump') {
+  bumpBranch().done();
 }
 else {
   help();
