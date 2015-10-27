@@ -105,7 +105,7 @@ function getIdentity() {
 function getStories() {
   dlog('getStories.');
   var story_types = ['chore', 'feature', 'bug'];
-  var states = ['unscheduled', 'unstarted'];
+  var states = ['unscheduled', 'unstarted', 'planned'];
 
   if (argv.started) {
     states.push('started');
