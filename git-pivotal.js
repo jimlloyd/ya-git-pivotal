@@ -20,7 +20,8 @@ var argv = parseArgs(process.argv.slice(2));
 var pivotalConfig = {
   project: null,
   token: null,
-  label: null
+  label: null,
+  states: 'unscheduled,unstarted,planned'
 };
 
 var pivotalIdentity;
@@ -44,7 +45,7 @@ function execCommand(cmd) {
 }
 
 function getPivotalConfig() {
-  var cmd = 'git config --get-regexp "pivotal\.(token|project|label)"';
+  var cmd = 'git config --get-regexp "pivotal\.(token|project|label|states)"';
   return execCommand(cmd)
     .timeout(3000)
     .then(function (outAndErr) {
@@ -105,8 +106,8 @@ function getIdentity() {
 function getStories() {
   dlog('getStories.');
   var story_types = ['chore', 'feature', 'bug'];
-  var states = ['unscheduled', 'unstarted', 'planned'];
-
+  var states = pivotalConfig.states.split(',');
+  
   if (argv.started) {
     states.push('started');
   }
