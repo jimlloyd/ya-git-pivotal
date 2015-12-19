@@ -11,7 +11,7 @@ var util = require('util');
 
 var Promise = require('bluebird');
 var TimeoutError = Promise.TimeoutError;
-var request = Promise.promisify(require("request"));
+var request = require("request");
 
 var Err = chalk.red.bold;
 
@@ -85,8 +85,14 @@ function apiRequest(path, options, method) {
 
   dlog('apiRequest started:', opts);
 
-  return request(opts).then(function (response) {
-    return response[1];
+  return new Promise(function (resolve, reject) {
+    request(opts, function(err, httpIncoming, body) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(body);
+      }
+    });
   });
 }
 
@@ -97,7 +103,7 @@ function getIdentity() {
   };
   return apiRequest('/me', options, 'get')
     .then(function (result) {
-      dlog('put request returned result:', result);
+      dlog('get /me request returned result:', result);
       pivotalIdentity = result;
       return result;
     });
