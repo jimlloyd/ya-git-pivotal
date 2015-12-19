@@ -3,11 +3,6 @@
 Yet Another Git Extension for Pivotal Tracker
 
 This is a node.js package that implements a git subcommand for integration with Pivotal Tracker.
-It currently provides only the subcommnad 'start', which allow you to pick a story to start work on.
-Starting a story triggers two actions:
-
-1. mark the story started in Pivotal
-2. create a feature branch.
 
 ## Installation
 
@@ -23,7 +18,7 @@ NAME
 	git-pivotal - Pivotal Tracker integration
 
 SYNOPSIS
-	git pivotal start <options>
+	git pivotal start <options> [storyid]
 	git pivotal bump
 
 DESCRIPTION
@@ -31,6 +26,8 @@ DESCRIPTION
 
 	Use the start subcommand to choose a story to begin work on. It starts the story in Pivotal Tracker
 	and creates an appropriately named branch in your local git repository.
+	You can start a specific story by optionally specifying the story id on the command line.
+	If no story id is specified, you'll be prompted to choose from a list of stories matching the filter options.
 
 	Use the bump subcommand to create a new branch for the current story, in preparation for rebasing.
 	The first time this is done, it appends ".v1" to the story name. On second and subsequent bumps
