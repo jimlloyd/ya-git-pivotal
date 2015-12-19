@@ -107,7 +107,7 @@ function getStories() {
   dlog('getStories.');
   var story_types = ['chore', 'feature', 'bug'];
   var states = pivotalConfig.states.split(',');
-  
+
   if (argv.started) {
     states.push('started');
   }
@@ -299,7 +299,7 @@ function help() {
     '\tand creates an appropriately named branch in your local git repository.',
     '',
     '\tUse the bump subcommand to create a new branch for the current story, in preparation for rebasing.',
-    '\tThe first time this is done, it appends ".v1" to the story name. On second and subsequent bumps, then',
+    '\tThe first time this is done, it appends ".v1" to the story name. On second and subsequent bumps',
     '\tthe version numbers is bumped: .v2, .v3, etc.',
     '\tThe bump subcommand does not change pivotal state.',
     '',
@@ -314,7 +314,8 @@ function help() {
     '\t--unscheduled',
     '\t--started',
     '\t    If any of these three options are specified, search only for stories of the given states.',
-    '\t    By default, search for unstarted (backlog) and unscheduled (icebox) stories.',
+    '\t    By default, search for unstarted (backlog) and unscheduled (icebox) stories, though the default',
+    '\t    may be overridden by setting the git config variable pivotal.states.',
     '',
     '\t--label=<label expression>',
     '\t    Return only stories that match the given `label expression`.',
@@ -331,6 +332,9 @@ function help() {
     '\tYou may optionally set:',
     '\t    pivotal.label    A default label that will be used as if it were provided with --label',
     '\t                     when --label=<label> is not specified on the command line.',
+    '\t    pivotal.states   A comma separate string of default story states to filter.',
+    '\t                     See the section on Story State in https://www.pivotaltracker.com/help/faq#howcanasearchberefined',
+    '\t                     for the states that can be specified.',
     ''
   ];
 

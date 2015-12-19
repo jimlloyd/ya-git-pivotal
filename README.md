@@ -24,13 +24,18 @@ NAME
 
 SYNOPSIS
 	git pivotal start <options>
-
-	(That's all for now. Other commands and options may be added at a later date.)
+	git pivotal bump
 
 DESCRIPTION
-	This command facilitates using Git with Pivotal Tracker. Currently just one subcommand is provided:
-	git pivotal start. Use the start subcommand to choose a story to begin work on. This starts
-	the story in Pivotal Tracker and creates an appropriately named branch in your local git repository.
+	This command facilitates using Git with Pivotal Tracker.
+
+	Use the start subcommand to choose a story to begin work on. It starts the story in Pivotal Tracker
+	and creates an appropriately named branch in your local git repository.
+
+	Use the bump subcommand to create a new branch for the current story, in preparation for rebasing.
+	The first time this is done, it appends ".v1" to the story name. On second and subsequent bumps
+	the version numbers is bumped: .v2, .v3, etc.
+	The bump subcommand does not change pivotal state.
 
 OPTIONS
 	--feature
@@ -43,11 +48,14 @@ OPTIONS
 	--unscheduled
 	--started
 	    If any of these three options are specified, search only for stories of the given states.
-	    By default, search for unstarted (backlog) and unscheduled (icebox) stories.
+	    By default, search for unstarted (backlog) and unscheduled (icebox) stories, though the default
+	    may be overridden by setting the git config variable pivotal.states.
 
-	--label=<label>
-	    Search only for stories with the given label.
-	    Note that a default label can be specified, see below.
+	--label=<label expression>
+	    Return only stories that match the given `label expression`.
+	    An expression is one or more label terms, separated by commas.
+	    A label term is either a simple label, or a label prefixed with a ! character, to exclude labels.
+	    Note that a default label expression can be specified, see below.
 
 CONFIGURATION
 	You must set two git configuration variables:
@@ -58,6 +66,9 @@ CONFIGURATION
 	You may optionally set:
 	    pivotal.label    A default label that will be used as if it were provided with --label
 	                     when --label=<label> is not specified on the command line.
+	    pivotal.states   A comma separate string of default story states to filter.
+	                     See the section on Story State in https://www.pivotaltracker.com/help/faq#howcanasearchberefined
+	                     for the states that can be specified.
 ```
 
 ## Other similar packages
