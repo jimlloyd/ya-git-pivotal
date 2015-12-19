@@ -342,10 +342,24 @@ function help() {
 }
 
 function selectStory() {
-  return getStories()
-    .then(sortStories)
-    .then(listStories)
-    .then(chooseStory);
+  if (argv._.length === 2) {
+    var storyId = argv._[1];
+    dlog('Story id on command line:', storyId);
+
+    var path = 'stories/' + storyId;
+    return apiRequest(path)
+      .then(function(story) {
+        dlog('Got story:', story);
+        return story;
+      });
+
+  } else {
+    dlog('Choosing stories from filtered list');
+    return getStories()
+      .then(sortStories)
+      .then(listStories)
+      .then(chooseStory);
+  }
 }
 
 function startStory() {
