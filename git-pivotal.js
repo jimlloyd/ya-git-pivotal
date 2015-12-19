@@ -341,13 +341,17 @@ function help() {
   process.stdout.write(usage.join('\n')+'\n');
 }
 
+function selectStory() {
+  return getStories()
+    .then(sortStories)
+    .then(listStories)
+    .then(chooseStory);
+}
+
 function startStory() {
   return getPivotalConfig()
     .then(getIdentity)
-    .then(getStories)
-    .then(sortStories)
-    .then(listStories)
-    .then(chooseStory)
+    .then(selectStory)
     .then(setStoryStarted)
     .then(makeBranchNameForStory)
     .then(createBranch)
