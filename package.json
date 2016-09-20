@@ -1,6 +1,6 @@
 {
   "name": "ya-git-pivotal",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Yet Another Git Extension for Pivotal Tracker",
   "main": "git-pivotal.js",
   "bin": {
