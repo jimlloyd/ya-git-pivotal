@@ -297,6 +297,7 @@ function help() {
     B('SYNOPSIS'),
     '\tgit pivotal start <options> [storyid]',
     '\tgit pivotal bump',
+    '\tgit pivotal done <storyid>',
     '',
     B('DESCRIPTION'),
     '\tThis command facilitates using Git with Pivotal Tracker.',
@@ -310,6 +311,8 @@ function help() {
     '\tThe first time this is done, it appends ".v1" to the story name. On second and subsequent bumps',
     '\tthe version numbers is bumped: .v2, .v3, etc.',
     '\tThe bump subcommand does not change pivotal state.',
+    '',
+    '\tUse the done command after your story is merged to delete all branches associated with the story',
     '',
     B('OPTIONS'),
     '\t--feature',
@@ -427,6 +430,37 @@ function bumpBranch() {
     });
 }
 
+function getAllBranchVersions(id) {
+  const cmd = `git branch --list '*_${id}*'`;
+  return execCommand(cmd)
+    .timeout(3000)
+    .then(function (outAndErr) {
+      const lines = outAndErr[0].split('\n');
+      const branches = _(lines).map((b) => b.trim()).compact().value();
+      return branches;
+    });
+}
+
+function switchToMaster() {
+  const cmd = 'git checkout master';
+  return execCommand(cmd).timeout(3000);
+}
+
+function removeBranches(branches) {
+  if (branches.length === 0) {
+    console.log('No branches matching that story id');
+  } else {
+    const cmd = 'git branch -D ' + branches.join(' ');
+    return execCommand(cmd);
+  }
+}
+
+function doneStory(id) {
+  return switchToMaster()
+  .then(() => getAllBranchVersions(id))
+  .then((branches) => removeBranches(branches));
+}
+
 if (argv.h || argv.help) {
   help();
 }
@@ -435,6 +469,9 @@ else if (argv._[0] === 'start') {
 }
 else if (argv._[0] === 'bump') {
   bumpBranch().done();
+}
+else if (argv._[0] === 'done') {
+  doneStory(argv._[1]).done();
 }
 else {
   help();
