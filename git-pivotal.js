@@ -10,7 +10,6 @@ var readline = require('readline');
 var util = require('util');
 
 var Promise = require('bluebird');
-var TimeoutError = Promise.TimeoutError;
 var request = require("request");
 
 var Err = chalk.red.bold;
@@ -47,7 +46,6 @@ function execCommand(cmd) {
 function getPivotalConfig() {
   var cmd = 'git config --get-regexp "pivotal\.(token|project|label|states)"';
   return execCommand(cmd)
-    .timeout(3000)
     .then(function (outAndErr) {
       var lines = outAndErr[0].split('\n');
       lines = lines.map(function (line) { return line.trim(); });
@@ -280,7 +278,6 @@ function createBranch(branch) {
   var cmd = 'git checkout -b ' + branch;
   process.stdout.write('\n' + chalk.gray.bold(cmd) + '\n');
   return execCommand(cmd)
-    .timeout(3000)
     .then(function (outAndErr) {
       _.forEach(outAndErr, process.stdout.write.bind(process.stdout));
       return null;
@@ -391,7 +388,6 @@ function startStory() {
 function getNewBranchName() {
   var cmd = 'git symbolic-ref --short HEAD';
   return execCommand(cmd)
-    .timeout(3000)
     .then(function (outAndErr) {
       var lines = outAndErr[0].split('\n');
       var branch = lines[0];
@@ -433,7 +429,6 @@ function bumpBranch() {
 function getAllBranchVersions(id) {
   const cmd = `git branch --list '*_${id}*'`;
   return execCommand(cmd)
-    .timeout(3000)
     .then(function (outAndErr) {
       const lines = outAndErr[0].split('\n');
       const branches = _(lines).map((b) => b.trim()).compact().value();
@@ -443,7 +438,7 @@ function getAllBranchVersions(id) {
 
 function switchToMaster() {
   const cmd = 'git checkout master';
-  return execCommand(cmd).timeout(3000);
+  return execCommand(cmd);
 }
 
 function removeBranches(branches) {
